@@ -1,0 +1,48 @@
+name: Build WASM with Emscripten
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: emscripten/emsdk:3.1.63  # versi emscripten terbaru
+      options: --user root
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create output folder
+        run: mkdir -p public/wasm
+
+      - name: Compile with emcc
+        run: |
+          emcc src/cpp_core/main.cpp \
+            -Isrc/cpp_core \
+            -O3 \
+            -std=c++17 \
+            -s WASM=1 \
+            -s ALLOW_MEMORY_GROWTH=1 \
+            -s EXPORTED_RUNTIME_METHODS='["cwrap", "ccall", "getValue", "setValue", "UTF8ToString", "stringToUTF8"]' \
+            -s EXPORT_ES6=1 \
+            -s MODULARIZE=1 \
+            -s EXPORT_NAME="DevToolsCoreModule" \
+            -o public/wasm/devtools_core.js
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-build
+          path: public/wasm/
+
+      - name: Commit to repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add public/wasm/
+          git commit -m "chore: build wasm [skip ci]" || exit 0
+          git push
