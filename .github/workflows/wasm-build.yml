@@ -1,29 +1,20 @@
 name: Build WASM with Emscripten
-
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - 'src/cpp_core/**'
-      - '.github/workflows/build-wasm.yml'
-  workflow_dispatch: # biar bisa pencet manual
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    # JALAN DI DOCKER EMSCRIPTEN RESMI
     container:
       image: emscripten/emsdk:3.1.63
       options: --user root
-      volumes:
-        - ${{ github.workspace }}:${{ github.workspace }}
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # penting buat bisa git push
+          fetch-depth: 0 # WAJIB INI
 
       - name: Create output folder
         run: mkdir -p public/wasm
@@ -36,25 +27,20 @@ jobs:
             -std=c++17 \
             -s WASM=1 \
             -s ALLOW_MEMORY_GROWTH=1 \
-            -s EXPORTED_RUNTIME_METHODS='["cwrap", "ccall", "getValue", "setValue", "UTF8ToString", "stringToUTF8"]' \
+            -s EXPORTED_RUNTIME_METHODS='["cwrap", "ccall", "UTF8ToString", "stringToUTF8"]' \
             -s EXPORT_ES6=1 \
             -s MODULARIZE=1 \
             -s EXPORT_NAME="DevToolsCoreModule" \
-            -s FILESYSTEM=0 \
             -o public/wasm/devtools_core.js
 
-      - name: Upload build artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wasm-build-${{ github.sha }}
+          name: wasm-build
           path: public/wasm/
-          retention-days: 30
 
-      - name: Auto commit WASM to repo
+      - name: Auto commit WASM to repo # <--- PAKE INI AJA
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: build wasm [skip ci] [${{ github.sha }}]"
+          commit_message: "chore: build wasm [skip ci]"
           file_pattern: public/wasm/*
-          branch: main
-          commit_user_name: github-actions[bot]
-          commit_user_email: github-actions[bot]@users.noreply.github.com
